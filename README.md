@@ -1,4 +1,4 @@
-# HelloPlugin
+# thelazyApi（一键修改启航api）
 
 <!--
 ## 插件开发者详阅
