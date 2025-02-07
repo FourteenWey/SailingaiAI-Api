@@ -52,4 +52,7 @@
 ```
 !model set 模型名称
 ```
+## 截图
+![9e0c5061951859eb2d188fcc451062c5](https://github.com/user-attachments/assets/1a0a3477-dceb-4581-9000-a53cf426de82)
+
 <!-- 插件开发者自行填写插件使用说明 -->
