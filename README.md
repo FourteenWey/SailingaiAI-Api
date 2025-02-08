@@ -42,17 +42,14 @@
 输入下方命令即可一键修改为启航api并且兼容起航的所有大模型使用
 1.下方命令 进行修改api根据提示操作
 ```
-/一键修改
+/启航
 ```
 2.下方命令 进行查看目前兼容的模型
 ```
 !model
 ```
-3.下方命令 进行修改模型比如 !model set gpt-4-turbo
-```
-!model set 模型名称
-```
 ## 截图
-![9e0c5061951859eb2d188fcc451062c5](https://github.com/user-attachments/assets/1a0a3477-dceb-4581-9000-a53cf426de82)
+![99032c5f671ed2e29b2333420578fd94](https://github.com/user-attachments/assets/eba5a8d0-616c-427d-ba1f-24e41c2112c6)
+
 
 <!-- 插件开发者自行填写插件使用说明 -->
