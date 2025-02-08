@@ -13,12 +13,42 @@ import asyncio
 class KeyConfigPlugin(BasePlugin):
 
     def __init__(self, host: APIHost):
-        self.config_path = "data/config/provider.json"
-        self.llm_models_source = "plugins/key/llm-models.json"
+        # 获取插件目录的路径
+        plugin_dir = os.path.dirname(__file__)
+        # 所有路径都基于插件目录
+        self.config_path = os.path.join(plugin_dir, "provider.json")
+        self.llm_models_source = os.path.join(plugin_dir, "llm-models.json")
         self.llm_models_target = "data/metadata/llm-models.json"
         self.user_states = {}  
         self.host = host
         
+        # 确保目标目录存在
+        os.makedirs(os.path.dirname(self.llm_models_target), exist_ok=True)
+        
+        # 如果源文件不存在，创建默认的llm-models.json
+        if not os.path.exists(self.llm_models_source):
+            default_models = {
+                "list": [
+                    {
+                        "model_name": "gpt-3.5-turbo",
+                        "name": "OneAPI/gpt-3.5-turbo",
+                        "tool_call_supported": True,
+                        "vision_supported": True
+                    },
+                    {
+                        "model_name": "gpt-4",
+                        "name": "OneAPI/gpt-4",
+                        "tool_call_supported": True,
+                        "vision_supported": True
+                    }
+                ]
+            }
+            with open(self.llm_models_source, 'w', encoding='utf-8') as f:
+                json.dump(default_models, f, indent=4, ensure_ascii=False)
+        
+        # 确保目标文件存在（无论源文件是否刚创建）
+        shutil.copy2(self.llm_models_source, self.llm_models_target)
+
     async def initialize(self):
         pass
 
@@ -132,11 +162,25 @@ class KeyConfigPlugin(BasePlugin):
                     
                     # 2. 创建备份
                     provider_backup = self.backup_file(self.config_path)
-                    llm_models_backup = self.backup_file(self.llm_models_target)
+                    llm_models_backup = self.backup_file(self.llm_models_source)
 
                     # 3. 更新 provider.json
-                    with open(self.config_path, 'r', encoding='utf-8') as f:
-                        config = json.load(f)
+                    if not os.path.exists(self.config_path):
+                        # 如果provider.json不存在，创建一个新的配置
+                        config = {
+                            "keys": {
+                                "openai": [current_state['api_key']]
+                            },
+                            "requester": {
+                                "openai-chat-completions": {
+                                    "base-url": current_state['api_url']
+                                }
+                            },
+                            "model": f"OneAPI/{current_state['model_name']}"
+                        }
+                    else:
+                        with open(self.config_path, 'r', encoding='utf-8') as f:
+                            config = json.load(f)
 
                     if current_state['step'] == 3:  # 完整配置时更新所有内容
                         config['keys']['openai'] = [current_state['api_key']]
@@ -171,41 +215,41 @@ class KeyConfigPlugin(BasePlugin):
                                 "vision_supported": True
                             }
                             llm_models['list'].append(new_model)
-                            
-                            with open(self.llm_models_source, 'w', encoding='utf-8') as f:
-                                json.dump(llm_models, f, indent=4, ensure_ascii=False)
-                                f.flush()
-                                try:
-                                    os.fsync(f.fileno())
-                                except Exception:
-                                    pass
+                        
+                        # 无论是否添加新模型，都保存并复制到目标位置
+                        with open(self.llm_models_source, 'w', encoding='utf-8') as f:
+                            json.dump(llm_models, f, indent=4, ensure_ascii=False)
+                            f.flush()
+                            try:
+                                os.fsync(f.fileno())
+                            except Exception:
+                                pass
 
-                        # 复制到目标位置
+                        # 确保目标目录存在并复制文件
+                        os.makedirs(os.path.dirname(self.llm_models_target), exist_ok=True)
                         shutil.copy2(self.llm_models_source, self.llm_models_target)
 
                     # 5. 准备成功消息
                     success_msg = ["配置已更新成功！"]
                     if current_state['step'] == 4:  # 仅修改模型的消息
-                        if os.path.exists(self.llm_models_source):
-                            success_msg.extend([
-                                f"1. 默认模型已更新为: OneAPI/{current_state['model_name']}",
-                                "2. llm-models.json已更新" + (" (已添加新模型)" if not model_exists else "")
-                            ])
-                            if provider_backup:
-                                success_msg.append(f"3. provider.json已备份为: {os.path.basename(provider_backup)}")
-                            if llm_models_backup:
-                                success_msg.append(f"4. llm-models.json已备份为: {os.path.basename(llm_models_backup)}")
+                        success_msg.extend([
+                            f"1. 默认模型已更新为: OneAPI/{current_state['model_name']}",
+                            "2. llm-models.json已更新" + (" (已添加新模型)" if not model_exists else "")
+                        ])
+                        if provider_backup:
+                            success_msg.append(f"3. provider.json已备份为: {os.path.basename(provider_backup)}")
+                        if llm_models_backup:
+                            success_msg.append(f"4. llm-models.json已备份为: {os.path.basename(llm_models_backup)}")
                     else:  # 完整配置的消息
-                        if os.path.exists(self.llm_models_source):
-                            success_msg.extend([
-                                "1. API Key已设置",
-                                f"2. 默认模型已更新为: OneAPI/{current_state['model_name']}",
-                                "3. llm-models.json已更新" + (" (已添加新模型)" if not model_exists else "")
-                            ])
-                            if provider_backup:
-                                success_msg.append(f"4. provider.json已备份为: {os.path.basename(provider_backup)}")
-                            if llm_models_backup:
-                                success_msg.append(f"5. llm-models.json已备份为: {os.path.basename(llm_models_backup)}")
+                        success_msg.extend([
+                            "1. API Key已设置",
+                            f"2. 默认模型已更新为: OneAPI/{current_state['model_name']}",
+                            "3. llm-models.json已更新" + (" (已添加新模型)" if not model_exists else "")
+                        ])
+                        if provider_backup:
+                            success_msg.append(f"4. provider.json已备份为: {os.path.basename(provider_backup)}")
+                        if llm_models_backup:
+                            success_msg.append(f"5. llm-models.json已备份为: {os.path.basename(llm_models_backup)}")
 
                     success_msg.append("\n请按以下步骤操作：")
                     success_msg.append("1. 关闭当前运行的langbot")
