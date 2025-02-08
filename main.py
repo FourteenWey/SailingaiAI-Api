@@ -9,7 +9,7 @@ from pkg.core import entities as core_entities
 import asyncio  
 
 # 注册插件
-@register(name="启航Ai-Api一键修改", description="一键修改API为起航AI", version="0.1", author="小馄饨")
+@register(name="启航Ai-Api一键修改", description="一键修改API为启航AI", version="0.1", author="小馄饨")
 class KeyConfigPlugin(BasePlugin):
 
     def __init__(self, host: APIHost):
