@@ -38,7 +38,7 @@ class KeyConfigPlugin(BasePlugin):
         msg = ctx.event.text_message
         sender_id = ctx.event.sender_id
         
-        if msg == "/启航":
+        if msg == ".启航":
             help_msg = [
                 "欢迎使用启航AI配置助手，请选择操作：",
                 "1. 初始配置（配置API Key和模型）",
@@ -55,7 +55,7 @@ class KeyConfigPlugin(BasePlugin):
             ctx.prevent_default()
             return
 
-        if msg == "/重载插件":
+        if msg == ".重载插件":
             try:
                 await self.ap.reload(scope='plugin')
                 ctx.add_return("reply", ["插件已重新加载"])
@@ -64,7 +64,7 @@ class KeyConfigPlugin(BasePlugin):
             ctx.prevent_default()
             return
 
-        if msg == "/重载平台":
+        if msg == ".重载平台":
             try:
                 await self.ap.reload(scope='platform')
                 ctx.add_return("reply", ["消息平台已重新加载"])
@@ -73,7 +73,7 @@ class KeyConfigPlugin(BasePlugin):
             ctx.prevent_default()
             return
 
-        if msg == "/重载LLM":
+        if msg == ".重载LLM":
             try:
                 await self.ap.reload(scope='provider')
                 ctx.add_return("reply", ["LLM管理器已重新加载"])
@@ -252,7 +252,7 @@ class KeyConfigPlugin(BasePlugin):
     @handler(GroupNormalMessageReceived)
     async def group_normal_message_received(self, ctx: EventContext):
         msg = ctx.event.text_message
-        if msg.startswith("/一键修改") or msg.startswith("sk-"):
+        if msg.startswith(".一键修改") or msg.startswith("sk-"):
             ctx.add_return("reply", ["为了保护您的API key安全，请私聊机器人进行配置修改。"])
             ctx.prevent_default()
 
