@@ -55,33 +55,6 @@ class KeyConfigPlugin(BasePlugin):
             ctx.prevent_default()
             return
 
-        if msg == ".重载插件":
-            try:
-                await self.ap.reload(scope='plugin')
-                ctx.add_return("reply", ["插件已重新加载"])
-            except Exception as e:
-                ctx.add_return("reply", [f"重载插件失败: {str(e)}"])
-            ctx.prevent_default()
-            return
-
-        if msg == ".重载平台":
-            try:
-                await self.ap.reload(scope='platform')
-                ctx.add_return("reply", ["消息平台已重新加载"])
-            except Exception as e:
-                ctx.add_return("reply", [f"重载平台失败: {str(e)}"])
-            ctx.prevent_default()
-            return
-
-        if msg == ".重载LLM":
-            try:
-                await self.ap.reload(scope='provider')
-                ctx.add_return("reply", ["LLM管理器已重新加载"])
-            except Exception as e:
-                ctx.add_return("reply", [f"重载LLM管理器失败: {str(e)}"])
-            ctx.prevent_default()
-            return
-            
         if sender_id in self.user_states:
             current_state = self.user_states[sender_id]
             
@@ -147,33 +120,32 @@ class KeyConfigPlugin(BasePlugin):
                     os.makedirs(os.path.dirname(self.llm_models_target), exist_ok=True)
 
                     try:
+                        # 读取现有的模型列表
                         target_models = {"list": []}
                         if os.path.exists(self.llm_models_target):
                             try:
                                 with open(self.llm_models_target, 'r', encoding='utf-8') as f:
                                     content = f.read()
-                                    if content.strip():  # 确保文件不是空的
+                                    if content.strip():
                                         target_models = json.loads(content)
-                                    # 如果文件是空的或格式不正确，使用默认结构
                                     if 'list' not in target_models:
                                         target_models = {"list": []}
                             except json.JSONDecodeError:
-                                # 如果JSON解析失败，使用默认结构
                                 target_models = {"list": []}
                         
-                        # 检查模型是否已存在
+                        # 分离 OneAPI 和非 OneAPI 模型
                         model_list = target_models.get('list', [])
-                        for model in model_list:
-                            if model.get('name') == model_name:
-                                model_exists = True
-                                break
+                        oneapi_models = [model for model in model_list if model.get('name', '').startswith('OneAPI/')]
+                        other_models = [model for model in model_list if not model.get('name', '').startswith('OneAPI/')]
+                        
+                        # 检查新模型是否已存在于 OneAPI 模型中
+                        model_exists = any(model.get('name') == model_name for model in oneapi_models)
                         
                         if not model_exists:
-                            # 添加到列表开头
-                            if not isinstance(model_list, list):
-                                model_list = []
-                            model_list.insert(0, new_model)
-                            target_models['list'] = model_list
+                            # 将新的 OneAPI 模型添加到 OneAPI 模型列表开头
+                            oneapi_models.insert(0, new_model)
+                            # 合并 OneAPI 模型和其他模型
+                            target_models['list'] = oneapi_models + other_models
 
                             # 写入更新后的配置
                             temp_file = f"{self.llm_models_target}.temp"
@@ -183,7 +155,6 @@ class KeyConfigPlugin(BasePlugin):
                                     f.flush()
                                     os.fsync(f.fileno())
                                 
-                                # 在Windows上需要先删除目标文件
                                 if os.path.exists(self.llm_models_target):
                                     os.remove(self.llm_models_target)
                                 os.rename(temp_file, self.llm_models_target)
@@ -261,25 +232,6 @@ class KeyConfigPlugin(BasePlugin):
                     # 6. 发送成功消息并清理状态
                     ctx.add_return("reply", ["\n".join(success_msg)])
                     del self.user_states[sender_id]
-                    
-                    # 7. 创建一个异步任务来处理热重载
-                    async def do_reload():
-                        # 等待2秒确保消息发送完成
-                        await asyncio.sleep(2)
-                        try:
-                            await self.ap.reload(scope='provider')
-                            await self.ap.reload(scope='plugin')
-                            await self.ap.reload(scope='platform')
-                        except Exception as e:
-                            # 如果重载失败，发送额外的错误消息
-                            error_msg = [
-                                f"\n⚠ 重载过程出现错误: {str(e)}",
-                                "请尝试重启程序"
-                            ]
-                            ctx.add_return("reply", ["\n".join(error_msg)])
-                    
-                    # 8. 启动异步重载任务
-                    asyncio.create_task(do_reload())
 
                 except Exception as e:
                     error_msg = [
