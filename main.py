@@ -9,7 +9,7 @@ from pkg.core import entities as core_entities
 import asyncio  
 
 # 注册插件
-@register(name="启航Ai-Api一键修改", description="一键修改API为启航AI", version="0.1", author="小馄饨")
+@register(name="启航Ai-Api一键修改", description="一键修改API为启航AI", version="0.2", author="小馄饨")
 class KeyConfigPlugin(BasePlugin):
 
     def __init__(self, host: APIHost):
@@ -44,7 +44,9 @@ class KeyConfigPlugin(BasePlugin):
                 "欢迎使用启航AI-Api配置助手，请选择操作：",
                 "1. 初始配置（配置API Key和模型）",
                 "2. 修改模型",
-                "\n请输入数字(1-2)选择操作"
+                "0. 返回上一步",
+                "10. 结束设定（不保存）",
+                "\n请输入数字选择操作"
             ]
             self.user_states[sender_id] = {
                 'step': 0,  # 0表示选择操作阶段
@@ -58,11 +60,54 @@ class KeyConfigPlugin(BasePlugin):
         if sender_id in self.user_states:
             current_state = self.user_states[sender_id]
             
+            # 处理结束设定
+            if msg == "10":
+                ctx.prevent_default()
+                del self.user_states[sender_id]
+                ctx.add_return("reply", ["已结束设定（不保存任何更改）。"])
+                return
+                
+            # 处理返回上一步
+            if msg == "0":
+                ctx.prevent_default()
+                if current_state['step'] == 0:
+                    del self.user_states[sender_id]
+                    ctx.add_return("reply", ["已退出设定。"])
+                    return
+                elif current_state['step'] == 2:
+                    current_state['step'] = 0
+                    help_msg = [
+                        "请选择操作：",
+                        "1. 初始配置（配置API Key和模型）",
+                        "2. 修改模型",
+                        "0. 返回上一步",
+                        "10. 结束设定（不保存）",
+                        "\n请输入数字选择操作"
+                    ]
+                    ctx.add_return("reply", ["\n".join(help_msg)])
+                    return
+                elif current_state['step'] in [3, 4]:
+                    if current_state['step'] == 3:
+                        current_state['step'] = 2
+                        ctx.add_return("reply", ["步骤1: 请输入API Key\n(格式应为: sk-xxxxxxxx)\n如果你不知道API Key，请点击https://api.qhaigc.net/ 购买\n\n输入0返回上一步，输入10结束设定（不保存）"])
+                    else:  # step 4
+                        current_state['step'] = 0
+                        help_msg = [
+                            "请选择操作：",
+                            "1. 初始配置（配置API Key和模型）",
+                            "2. 修改模型",
+                            "0. 返回上一步",
+                            "10. 结束设定（不保存）",
+                            "\n请输入数字选择操作"
+                        ]
+                        ctx.add_return("reply", ["\n".join(help_msg)])
+                    return
+            
             if current_state['step'] == 0:  # 处理选择操作
                 ctx.prevent_default()
                 if msg == "1":  # 初始配置
                     current_state['step'] = 2  # 直接从输入API Key开始
-                    ctx.add_return("reply", ["步骤1: 请输入API Key\n(格式应为: sk-xxxxxxxx)\n如果你不知道API Key，请点击https://api.qhaigc.net/ 购买"])
+                    ctx.add_return("reply", ["步骤1: 请输入API Key\n(格式应为: sk-xxxxxxxx)\n如果你不知道API Key，请点击https://api.qhaigc.net/ 购买\n\n输入0返回上一步，输入10结束设定（不保存）"])
                     return
                 elif msg == "2":  # 修改模型
                     try:
@@ -71,27 +116,26 @@ class KeyConfigPlugin(BasePlugin):
                         
                         current_state['step'] = 4  # 使用步骤4表示仅修改模型
                         current_state['api_key'] = current_config['keys']['openai'][0]
-                        ctx.add_return("reply", ["请输入新的模型名称\n(请输入API网站给的模型价格中的模型名称)\n如果你不知道模型名称，请点击 https://api.qhaigc.net/pricing 查看"])
+                        ctx.add_return("reply", ["请输入新的模型名称\n(请输入API网站给的模型价格中的模型名称)\n如果你不知道模型名称，请点击 https://api.qhaigc.net/pricing 查看\n\n输入0返回上一步，输入10结束设定（不保存）"])
                         return
                     except Exception as e:
                         ctx.add_return("reply", ["读取当前配置失败，请先使用初始配置（选项1）完成完整配置。"])
                         del self.user_states[sender_id]
                         return
                 else:
-                    ctx.add_return("reply", ["无效的选择，请输入数字1-2选择操作：\n1. 初始配置（配置API Key和模型）\n2. 修改模型"])
+                    ctx.add_return("reply", ["无效的选择，请输入数字选择操作：\n1. 初始配置（配置API Key和模型）\n2. 修改模型\n0. 返回上一步\n10. 结束设定（不保存）"])
                     return
             
-            elif current_state['step'] == 2: 
-                # 先阻止默认处理，防止消息发送给大模型
+            elif current_state['step'] == 2:
                 ctx.prevent_default()
                 
                 if not msg.startswith('sk-'):
-                    ctx.add_return("reply", ["API Key格式不正确，请重新输入\n(格式应为: sk-xxxxxxxx)\n如果你不知道API Key，请点击https://api.qhaigc.net/ 购买API Key"])
+                    ctx.add_return("reply", ["API Key格式不正确，请重新输入\n(格式应为: sk-xxxxxxxx)\n如果你不知道API Key，请点击https://api.qhaigc.net/ 购买API Key\n\n输入0返回上一步，输入10结束设定（不保存）"])
                     return
                     
                 current_state['api_key'] = msg.strip()
                 current_state['step'] = 3
-                ctx.add_return("reply", ["步骤3: 请输入模型名称\n(请输入API网站给的模型价格中的模型名称)\n如果你不知道模型名称，请点击 https://api.qhaigc.net/pricing 查看"])
+                ctx.add_return("reply", ["步骤3: 请输入模型名称\n(请输入API网站给的模型价格中的模型名称)\n如果你不知道模型名称，请点击 https://api.qhaigc.net/pricing 查看\n\n输入0返回上一步，输入10结束设定（不保存）"])
                 return
                 
             elif current_state['step'] == 3 or current_state['step'] == 4:  # 添加步骤4的处理
