@@ -18,7 +18,7 @@ class KeyConfigPlugin(BasePlugin):
         self.llm_models_target = "data/metadata/llm-models.json"
         self.user_states = {}  
         self.host = host
-        self.fixed_api_url = "https://api.qhaigc.net/v1"  # Add fixed API URL
+        self.fixed_api_url = "https://api.siliconflow.cn/v1/"  # Add fixed API URL
         
     async def initialize(self):
         pass
